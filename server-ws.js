@@ -14,6 +14,7 @@ server.listen(PORT, function () {
 });
 
 process.on("SIGINT", function () {
+  wss.clients.forEach((client) => client.close());
   server.close(() => {
     closeDatabase();
   });
