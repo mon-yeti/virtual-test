@@ -1,38 +1,70 @@
-const express = require('express');
-const server = require('http').createServer();
+const express = require("express");
+const server = require("http").createServer();
 const app = express();
 const PORT = 3000;
 
-app.get('/', function(req, res) {
-  res.sendFile('index.html', {root: __dirname});
+app.get("/", function (req, res) {
+  res.sendFile("index.html", { root: __dirname });
 });
 
-server.on('request', app);
+server.on("request", app);
 
-server.listen(PORT, function () { console.log('Listening on ' + PORT); });
+server.listen(PORT, function () {
+  console.log("Listening on " + PORT);
+});
+
+process.on("SIGINT", function () {
+  server.close(() => {
+    closeDatabase();
+  });
+  process.exit(0);
+});
+
+const Database = require("better-sqlite3");
+const db = new Database(":memory:");
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS visitors (
+    count INTEGER,
+    time TEXT
+  )
+`);
+
+const insertVisitor = db.prepare(`
+  INSERT INTO visitors (count, time)
+  VALUES (?, datetime('now'))
+`);
+
+const selectVisitorCount = db.prepare("SELECT count FROM visitors LIMIT 1");
 
 /** Websocket **/
-const WebSocketServer = require('ws').Server;
+const WebSocketServer = require("ws").Server;
 
 const wss = new WebSocketServer({ server: server });
 
-wss.on('connection', function connection(ws) {
+wss.on("connection", function connection(ws) {
   const numClients = wss.clients.size;
 
-  console.log('clients connected: ', numClients);
+  console.log("clients connected: ", numClients);
 
   wss.broadcast(`Current visitors: ${numClients}`);
 
   if (ws.readyState === ws.OPEN) {
-    ws.send('welcome!');
+    ws.send("welcome!");
   }
 
-  ws.on('close', function close() {
+  try {
+    insertVisitor.run(numClients);
+  } catch (err) {
+    console.error(err);
+  }
+
+  ws.on("close", function close() {
     wss.broadcast(`Current visitors: ${wss.clients.size}`);
-    console.log('A client has disconnected');
+    console.log("A client has disconnected");
   });
 
-  ws.on('error', function error() {
+  ws.on("error", function error() {
     //
   });
 });
@@ -43,10 +75,20 @@ wss.on('connection', function connection(ws) {
  * @void
  */
 wss.broadcast = function broadcast(data) {
-  console.log('Broadcasting: ', data);
+  console.log("Broadcasting: ", data);
   wss.clients.forEach(function each(client) {
     client.send(data);
   });
 };
 /** End Websocket **/
 
+function getVisitors() {
+  const row = selectVisitorCount.get();
+  console.log(row);
+}
+
+function closeDatabase() {
+  getVisitors();
+  console.log("Closing database");
+  db.close();
+}
