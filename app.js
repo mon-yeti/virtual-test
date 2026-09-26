@@ -1,10 +1,24 @@
-const http = require('http');
+const express = require('express');
+const server = require('http').createServer();
 
 const PORT = 3000;
+const app = express();
 
-http.createServer(function (req,res) {
-   res.write("On my way!");
-   res.end();
-}).listen(PORT);
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
 
-console.log(`Server start on port ${PORT}`)
+
+server.on('request', app)
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+
+const WebSocketServer = require('ws').Server;
+
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws) => {
+    console.log('Client connected', ws);
+});
+
