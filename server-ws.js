@@ -15,9 +15,9 @@ server.listen(PORT, function () {
 
 process.on("SIGINT", function () {
   wss.clients.forEach((client) => client.close());
-  server.close(() => {
-    closeDatabase();
-  });
+  console.log("------");
+  server.close();
+  closeDatabase();
   process.exit(0);
 });
 
@@ -36,7 +36,7 @@ const insertVisitor = db.prepare(`
   VALUES (?, datetime('now'))
 `);
 
-const selectVisitorCount = db.prepare("SELECT count FROM visitors LIMIT 1");
+const selectVisitorCount = db.prepare("SELECT * FROM visitors");
 
 /** Websocket **/
 const WebSocketServer = require("ws").Server;
@@ -84,7 +84,7 @@ wss.broadcast = function broadcast(data) {
 /** End Websocket **/
 
 function getVisitors() {
-  const row = selectVisitorCount.get();
+  const row = selectVisitorCount.all();
   console.log(row);
 }
 
